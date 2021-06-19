@@ -1,5 +1,8 @@
 */build
 */*/build
 */*.wts
+*/*.pth
+*/*.onnx
+*/*.engine
 */*.ppm
 *idea*

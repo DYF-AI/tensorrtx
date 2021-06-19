@@ -6,6 +6,7 @@ import argparse
 import numpy as np
 import pycuda.autoinit
 import pycuda.driver as cuda
+# import pycuda as cuda
 import tensorrt as trt
 
 BATCH_SIZE = 1
