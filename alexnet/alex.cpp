@@ -47,13 +47,13 @@ std::map<std::string, Weights> loadWeights(const std::string file)
 
     while (count--)
     {
-        Weights wt{DataType::kFLOAT, nullptr, 0};
+        nvinfer1::Weights wt{DataType::kFLOAT, nullptr, 0};
         uint32_t size;
 
         // Read name and type of blob
         std::string name;
         input >> name >> std::dec >> size;
-        wt.type = DataType::kFLOAT;
+        wt.type = nvinfer1::DataType::kFLOAT;
 
         // Load blob
         uint32_t* val = reinterpret_cast<uint32_t*>(malloc(sizeof(val) * size));
@@ -71,74 +71,75 @@ std::map<std::string, Weights> loadWeights(const std::string file)
 }
 
 // Creat the engine using only the API and not any parser.
-ICudaEngine* createEngine(unsigned int maxBatchSize, IBuilder* builder, IBuilderConfig* config, DataType dt)
+nvinfer1::ICudaEngine* createEngine(unsigned int maxBatchSize, nvinfer1::IBuilder* builder, nvinfer1::IBuilderConfig* config, nvinfer1::DataType dt)
 {
-    INetworkDefinition* network = builder->createNetworkV2(0U);
+    nvinfer1::INetworkDefinition* network = builder->createNetworkV2(0U);
 
     // Create input tensor of shape { 1, 1, 32, 32 } with name INPUT_BLOB_NAME
-    ITensor* data = network->addInput(INPUT_BLOB_NAME, dt, Dims3{3, INPUT_H, INPUT_W});
+    nvinfer1::ITensor* data = network->addInput(INPUT_BLOB_NAME, dt, Dims3{3, INPUT_H, INPUT_W});
     assert(data);
 
-    std::map<std::string, Weights> weightMap = loadWeights("../alexnet.wts");
-    Weights emptywts{DataType::kFLOAT, nullptr, 0};
+    std::map<std::string, nvinfer1::Weights> weightMap = loadWeights("../alexnet.wts");
+    nvinfer1::Weights emptywts{nvinfer1::DataType::kFLOAT, nullptr, 0};
 
-    IConvolutionLayer* conv1 = network->addConvolutionNd(*data, 64, DimsHW{11, 11}, weightMap["features.0.weight"], weightMap["features.0.bias"]);
+    nvinfer1::IConvolutionLayer* conv1 = network->addConvolutionNd(*data, 64, nvinfer1::DimsHW{11, 11}, weightMap["features.0.weight"], weightMap["features.0.bias"]);
     assert(conv1);
-    conv1->setStrideNd(DimsHW{4, 4});
-    conv1->setPaddingNd(DimsHW{2, 2});
+    conv1->setStrideNd(nvinfer1::DimsHW{4, 4});
+    conv1->setPaddingNd(nvinfer1::DimsHW{2, 2});
 
     // Add activation layer using the ReLU algorithm.
-    IActivationLayer* relu1 = network->addActivation(*conv1->getOutput(0), ActivationType::kRELU);
+    nvinfer1::IActivationLayer* relu1 = network->addActivation(*conv1->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu1);
 
     // Add max pooling layer with stride of 2x2 and kernel size of 2x2.
-    IPoolingLayer* pool1 = network->addPoolingNd(*relu1->getOutput(0), PoolingType::kMAX, DimsHW{3, 3});
+    nvinfer1::IPoolingLayer* pool1 = network->addPoolingNd(*relu1->getOutput(0), nvinfer1::PoolingType::kMAX, nvinfer1::DimsHW{3, 3});
     assert(pool1);
-    pool1->setStrideNd(DimsHW{2, 2});
+    pool1->setStrideNd(nvinfer1::DimsHW{2, 2});
 
-    IConvolutionLayer* conv2 = network->addConvolutionNd(*pool1->getOutput(0), 192, DimsHW{5, 5}, weightMap["features.3.weight"], weightMap["features.3.bias"]);
+    nvinfer1::IConvolutionLayer* conv2 = network->addConvolutionNd(*pool1->getOutput(0), 192, nvinfer1::DimsHW{5, 5}, weightMap["features.3.weight"], weightMap["features.3.bias"]);
     assert(conv2);
-    conv2->setPaddingNd(DimsHW{2, 2});
-    IActivationLayer* relu2 = network->addActivation(*conv2->getOutput(0), ActivationType::kRELU);
+    conv2->setPaddingNd(nvinfer1::DimsHW{2, 2});
+    nvinfer1::IActivationLayer* relu2 = network->addActivation(*conv2->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu2);
-    IPoolingLayer* pool2 = network->addPoolingNd(*relu2->getOutput(0), PoolingType::kMAX, DimsHW{3, 3});
+    nvinfer1::IPoolingLayer* pool2 = network->addPoolingNd(*relu2->getOutput(0), nvinfer1::PoolingType::kMAX, nvinfer1::DimsHW{3, 3});
     assert(pool2);
-    pool2->setStrideNd(DimsHW{2, 2});
+    pool2->setStrideNd(nvinfer1::DimsHW{2, 2});
 
-    IConvolutionLayer* conv3 = network->addConvolutionNd(*pool2->getOutput(0), 384, DimsHW{3, 3}, weightMap["features.6.weight"], weightMap["features.6.bias"]);
+    nvinfer1::IConvolutionLayer* conv3 = network->addConvolutionNd(*pool2->getOutput(0), 384, nvinfer1::DimsHW{3, 3}, weightMap["features.6.weight"], weightMap["features.6.bias"]);
     assert(conv3);
-    conv3->setPaddingNd(DimsHW{1, 1});
-    IActivationLayer* relu3 = network->addActivation(*conv3->getOutput(0), ActivationType::kRELU);
+    conv3->setPaddingNd(nvinfer1::DimsHW{1, 1});
+    nvinfer1::IActivationLayer* relu3 = network->addActivation(*conv3->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu3);
 
-    IConvolutionLayer* conv4 = network->addConvolutionNd(*relu3->getOutput(0), 256, DimsHW{3, 3}, weightMap["features.8.weight"], weightMap["features.8.bias"]);
+    nvinfer1::IConvolutionLayer* conv4 = network->addConvolutionNd(*relu3->getOutput(0), 256, nvinfer1::DimsHW{3, 3}, weightMap["features.8.weight"], weightMap["features.8.bias"]);
     assert(conv4);
-    conv4->setPaddingNd(DimsHW{1, 1});
-    IActivationLayer* relu4 = network->addActivation(*conv4->getOutput(0), ActivationType::kRELU);
+    conv4->setPaddingNd(nvinfer1::DimsHW{1, 1});
+    nvinfer1::IActivationLayer* relu4 = network->addActivation(*conv4->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu4);
 
-    IConvolutionLayer* conv5 = network->addConvolutionNd(*relu4->getOutput(0), 256, DimsHW{3, 3}, weightMap["features.10.weight"], weightMap["features.10.bias"]);
+    nvinfer1::IConvolutionLayer* conv5 = network->addConvolutionNd(*relu4->getOutput(0), 256, nvinfer1::DimsHW{3, 3}, weightMap["features.10.weight"], weightMap["features.10.bias"]);
     assert(conv5);
-    conv5->setPaddingNd(DimsHW{1, 1});
-    IActivationLayer* relu5 = network->addActivation(*conv5->getOutput(0), ActivationType::kRELU);
+    conv5->setPaddingNd(nvinfer1::DimsHW{1, 1});
+    nvinfer1::IActivationLayer* relu5 = network->addActivation(*conv5->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu5);
-    IPoolingLayer* pool3 = network->addPoolingNd(*relu5->getOutput(0), PoolingType::kMAX, DimsHW{3, 3});
-    assert(pool3);
-    pool3->setStrideNd(DimsHW{2, 2});
 
-    IFullyConnectedLayer* fc1 = network->addFullyConnected(*pool3->getOutput(0), 4096, weightMap["classifier.1.weight"], weightMap["classifier.1.bias"]);
+    nvinfer1::IPoolingLayer* pool3 = network->addPoolingNd(*relu5->getOutput(0), nvinfer1::PoolingType::kMAX, nvinfer1::DimsHW{3, 3});
+    assert(pool3);
+    pool3->setStrideNd(nvinfer1::DimsHW{2, 2});
+
+    nvinfer1::IFullyConnectedLayer* fc1 = network->addFullyConnected(*pool3->getOutput(0), 4096, weightMap["classifier.1.weight"], weightMap["classifier.1.bias"]);
     assert(fc1);
 
-    IActivationLayer* relu6 = network->addActivation(*fc1->getOutput(0), ActivationType::kRELU);
+    nvinfer1::IActivationLayer* relu6 = network->addActivation(*fc1->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu6);
 
-    IFullyConnectedLayer* fc2 = network->addFullyConnected(*relu6->getOutput(0), 4096, weightMap["classifier.4.weight"], weightMap["classifier.4.bias"]);
+    nvinfer1::IFullyConnectedLayer* fc2 = network->addFullyConnected(*relu6->getOutput(0), 4096, weightMap["classifier.4.weight"], weightMap["classifier.4.bias"]);
     assert(fc2);
 
-    IActivationLayer* relu7 = network->addActivation(*fc2->getOutput(0), ActivationType::kRELU);
+    nvinfer1::IActivationLayer* relu7 = network->addActivation(*fc2->getOutput(0), nvinfer1::ActivationType::kRELU);
     assert(relu7);
 
-    IFullyConnectedLayer* fc3 = network->addFullyConnected(*relu7->getOutput(0), 1000, weightMap["classifier.6.weight"], weightMap["classifier.6.bias"]);
+    nvinfer1::IFullyConnectedLayer* fc3 = network->addFullyConnected(*relu7->getOutput(0), 1000, weightMap["classifier.6.weight"], weightMap["classifier.6.bias"]);
     assert(fc3);
 
     fc3->getOutput(0)->setName(OUTPUT_BLOB_NAME);
@@ -148,7 +149,7 @@ ICudaEngine* createEngine(unsigned int maxBatchSize, IBuilder* builder, IBuilder
     // Build engine
     builder->setMaxBatchSize(maxBatchSize);
     config->setMaxWorkspaceSize(1 << 20);
-    ICudaEngine* engine = builder->buildEngineWithConfig(*network, *config);
+    nvinfer1::ICudaEngine* engine = builder->buildEngineWithConfig(*network, *config);
     std::cout << "build out" << std::endl;
 
     // Don't need the network any more
@@ -163,14 +164,14 @@ ICudaEngine* createEngine(unsigned int maxBatchSize, IBuilder* builder, IBuilder
     return engine;
 }
 
-void APIToModel(unsigned int maxBatchSize, IHostMemory** modelStream)
+void APIToModel(unsigned int maxBatchSize, nvinfer1::IHostMemory** modelStream)
 {
     // Create builder
-    IBuilder* builder = createInferBuilder(gLogger);
-    IBuilderConfig* config = builder->createBuilderConfig();
+    nvinfer1::IBuilder* builder = nvinfer1::createInferBuilder(gLogger);
+    nvinfer1::IBuilderConfig* config = builder->createBuilderConfig();
 
     // Create model to populate the network, then set the outputs and create an engine
-    ICudaEngine* engine = createEngine(maxBatchSize, builder, config, DataType::kFLOAT);
+    nvinfer1::ICudaEngine* engine = createEngine(maxBatchSize, builder, config, nvinfer1::DataType::kFLOAT);
     assert(engine != nullptr);
 
     // Serialize the engine
@@ -181,9 +182,9 @@ void APIToModel(unsigned int maxBatchSize, IHostMemory** modelStream)
     builder->destroy();
 }
 
-void doInference(IExecutionContext& context, float* input, float* output, int batchSize)
+void doInference(nvinfer1::IExecutionContext& context, float* input, float* output, int batchSize)
 {
-    const ICudaEngine& engine = context.getEngine();
+    const nvinfer1::ICudaEngine& engine = context.getEngine();
 
     // Pointers to input and output device buffers to pass to engine.
     // Engine requires exactly IEngine::getNbBindings() number of buffers.
@@ -229,7 +230,7 @@ int main(int argc, char** argv)
     size_t size{0};
 
     if (std::string(argv[1]) == "-s") {
-        IHostMemory* modelStream{nullptr};
+        nvinfer1::IHostMemory* modelStream{nullptr};
         APIToModel(1, &modelStream);
         assert(modelStream != nullptr);
 
@@ -263,11 +264,11 @@ int main(int argc, char** argv)
     for (int i = 0; i < 3 * INPUT_H * INPUT_W; i++)
         data[i] = 1;
 
-    IRuntime* runtime = createInferRuntime(gLogger);
+    nvinfer1::IRuntime* runtime = nvinfer1::createInferRuntime(gLogger);
     assert(runtime != nullptr);
-    ICudaEngine* engine = runtime->deserializeCudaEngine(trtModelStream, size, nullptr);
+    nvinfer1::ICudaEngine* engine = runtime->deserializeCudaEngine(trtModelStream, size, nullptr);
     assert(engine != nullptr);
-    IExecutionContext* context = engine->createExecutionContext();
+    nvinfer1::IExecutionContext* context = engine->createExecutionContext();
     assert(context != nullptr);
 
     // Run inference
